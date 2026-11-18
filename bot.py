@@ -1,32 +1,28 @@
-import os, threading
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-
-def run_dummy_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_dummy_server, daemon=True).start()
 """
 FullBody Bot v2 — Telegram-бот для фуллбади-тренировок с визуальными гайдами.
-
-Что умеет:
-  • 8 мышечных групп × 2 упражнения, отдых 60–90 с с живым таймером;
-  • к КАЖДОМУ упражнению присылает GIF-анимацию (старт ⇄ финиш) или фото-карточку
-    «Старт → Финиш» — как в Fitbod / Strong / Hevy; в подписи техника и ошибки;
-  • замена упражнения на альтернативу, экспресс-режим, журнал подходов «60x10»,
-    прогресс, рекорды, «прошлый раз» прямо в карточке;
-  • библиотека упражнений с картинками по группам мышц.
-
-Стек: Python 3.10+, aiogram 3, Pillow, SQLite. Лицензия MIT.
 """
 from __future__ import annotations
 
+import os
+import sys
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+# === МГНОВЕННЫЙ ЗАПУСК ФЕЙКОВОГО СЕРВЕРА ДЛЯ RENDER (WEB SERVICE) ===
+def run_dummy_server():
+    try:
+        port = int(os.environ.get("PORT", 10000))
+        server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+        server.serve_forever()
+    except Exception as e:
+        print(f"Dummy server error: {e}")
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
+# ===================================================================
+
 import asyncio
 import logging
-import os
 import re
-import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -41,7 +37,7 @@ from aiogram.types import (BotCommand, CallbackQuery, FSInputFile, InlineKeyboar
 try:
     from dotenv import load_dotenv
     load_dotenv()
-except ImportError:  # python-dotenv не обязателен
+except ImportError:
     pass
 
 import db
@@ -56,7 +52,6 @@ REST_CHOICES = (60, 75, 90)
 SET_RE = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*[xх×\*]\s*(\d+)\s*$|^\s*(\d+)\s*$")
 
 router = Router()
-
 
 
 # ---------------------------------------------------------------- состояние тренировки
@@ -132,7 +127,6 @@ def technique_text(ex: Exercise) -> str:
 # ---------------------------------------------------------------- отправка медиа
 async def send_exercise(bot: Bot, chat_id: int, user_id: int, ex: Exercise, caption: str,
                         kb: Optional[InlineKeyboardMarkup] = None) -> Message:
-    """Шлёт GIF / фото-карточку (по настройке пользователя) с подписью; кеширует file_id."""
     mode = db.get_user(user_id).get("media_mode", "gif")
     if mode != "text":
         kind = "gif" if mode == "gif" else "card"
@@ -156,7 +150,6 @@ async def send_exercise(bot: Bot, chat_id: int, user_id: int, ex: Exercise, capt
                 return msg
             except TelegramBadRequest as e:
                 log.warning("media send failed (%s): %s", ex.key, e)
-        # запасной вариант: картинка по прямой ссылке из free-exercise-db
         try:
             return await bot.send_photo(chat_id, ex.image_urls[0], caption=caption, reply_markup=kb)
         except TelegramBadRequest:
@@ -377,7 +370,6 @@ async def _finish(uid: int, chat_id: int, bot: Bot, aborted: bool = False) -> No
 
 @router.message(F.text.regexp(SET_RE))
 async def msg_log_set(m: Message, bot: Bot) -> None:
-    """Пользователь пишет «60x10» или «10» — записываем подход и запускаем таймер."""
     s = SESSIONS.get(m.from_user.id)
     if not s:
         return await m.answer("Чтобы записывать подходы, начни тренировку: /workout")
