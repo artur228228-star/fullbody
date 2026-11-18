@@ -1,3 +1,12 @@
+import os, threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+threading.Thread(target=run_dummy_server, daemon=True).start()
 """
 FullBody Bot v2 — Telegram-бот для фуллбади-тренировок с визуальными гайдами.
 
@@ -47,16 +56,7 @@ REST_CHOICES = (60, 75, 90)
 SET_RE = re.compile(r"^\s*(\d+(?:[.,]\d+)?)\s*[xх×\*]\s*(\d+)\s*$|^\s*(\d+)\s*$")
 
 router = Router()
-# === ФЕЙКОВЫЙ ВЕБ-СЕРВЕР ДЛЯ RENDER WEB SERVICE ===
-import threading
-from http.server import HTTPServer, SimpleHTTPRequestHandler
 
-def run_dummy_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), SimpleHTTPRequestHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_dummy_server, daemon=True).start()
 
 
 # ---------------------------------------------------------------- состояние тренировки
